@@ -1,0 +1,88 @@
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+
+public class ApplicationServer
+{
+    private TcpListener listener;
+    private bool isRunning;
+
+    public void Start(int port)
+    {
+        listener = new TcpListener(IPAddress.Any, port);
+        listener.Start();
+        isRunning = true;
+        Console.WriteLine("Application server started on port " + port);
+
+        while (isRunning)
+        {
+            Console.WriteLine("Waiting for client connections...");
+            TcpClient client = listener.AcceptTcpClient();
+
+            // Start a new thread to handle the client
+            Thread clientThread = new Thread(HandleClient);
+            clientThread.Start(client);
+        }
+    }
+
+    public void Stop()
+    {
+        isRunning = false;
+        listener.Stop();
+        Console.WriteLine("Application server stopped");
+    }
+
+    private void HandleClient(object clientObj)
+    {
+        TcpClient client = (TcpClient)clientObj;
+        Console.WriteLine("Client connected: " + client.Client.RemoteEndPoint);
+
+        NetworkStream stream = client.GetStream();
+        byte[] buffer = new byte[1024];
+
+        while (true)
+        {
+            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            if (bytesRead == 0)
+                break;
+
+            string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            Console.WriteLine("Received request: " + request);
+
+            // Process the request and generate a response
+            string response = ProcessRequest(request);
+
+            // Send the response back to the client
+            byte[] responseData = Encoding.ASCII.GetBytes(response);
+            stream.Write(responseData, 0, responseData.Length);
+            Console.WriteLine("Sent response: " + response);
+        }
+
+        stream.Close();
+        client.Close();
+        Console.WriteLine("Client disconnected: " + client.Client.RemoteEndPoint);
+    }
+
+    private string ProcessRequest(string request)
+    {
+        // Process the request and generate a response
+        // Replace this with your actual application logic
+        return "Hello, client! Your request was: " + request;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        ApplicationServer server = new ApplicationServer();
+        server.Start(8080);
+
+        Console.WriteLine("Press Enter to stop the server...");
+        Console.ReadLine();
+
+        server.Stop();
+    }
+}
